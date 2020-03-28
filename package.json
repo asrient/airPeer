@@ -1,0 +1,14 @@
+{
+  "name": "airpeer",
+  "version": "1.0.0",
+  "description": "A js library for airSync devices",
+  "main": "lib.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ASRIENT",
+  "license": "ISC",
+  "dependencies": {
+    "component-emitter": "^1.3.0"
+  }
+}
