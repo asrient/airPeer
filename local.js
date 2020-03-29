@@ -6,6 +6,7 @@ const dgram = require('dgram');
 const message = require('./msg.js');
 
 var peers = [];
+var addrBook = {};
 
 function parseAirId(airId) {
     var ids = airId.split(':');
@@ -34,6 +35,12 @@ function getPeerAddresses(airId) {
     })
 }
 
+function getPeerByCode(code) {
+    return peers.find((peer) => {
+        return peer.code == code;
+    })
+}
+
 function getPeerAirId(address) {
     var p = peers.find((peer) => {
         return peer.address == address;
@@ -46,9 +53,12 @@ function getPeerAirId(address) {
 function peerUpdate(rec) {
     var dt = new Date();
     var ind = peers.findIndex((peer) => {
-        return (peer.uid == rec.uid && peer.host == rec.host && peer.address == rec.address)
+        return (peer.uid == rec.uid && peer.host == rec.host && peer.address == rec.address && peer.code == rec.code)
     })
     if (ind >= 0) {
+        if(peers[ind].name!=rec.name||peers[ind].icon != rec.icon){
+            console.log("Updating name & icon",peers[ind].name,rec.name)
+        }
         peers[ind].name = rec.name;
         peers[ind].icon = rec.icon;
         peers[ind].lastSeen = dt.getTime();
@@ -61,6 +71,7 @@ function peerUpdate(rec) {
             address: rec.address,
             name: rec.name,
             icon: rec.icon,
+            code: rec.code,
             sessionId: 'local.' + keyGen(),
             lastSeen: dt.getTime()
         }
@@ -78,24 +89,23 @@ mdns.on('response', function (response) {
                 data[r[0].trim()] = r[1].trim();
             })
             if (data.uid != undefined && data.host != undefined && data.addresses != undefined) {
+                //console.log("[DISCOVERY]",data.uid,data.addresses);
                 data.addresses = JSON.parse(data.addresses);
-                var isFound = false;
+                var code = keyGen(6);
+                //check if an address from the set already exists, then use its code
                 data.addresses.forEach((addr) => {
+                    if (addrBook[addr] != undefined) {
+                       //console.log("[DISCOVERY] peer has an address regestered already")
+                       code=addrBook[addr].code;
+                    }
+                })
+                data.addresses.forEach((addr) => {
+                    if (addrBook[addr] == undefined) {
+                        addrBook[addr] = { code, uid: data.uid, host: data.host, name: data.name, icon: data.icon, address: addr }
+                    }
                     var ip = addr.split(':')[0];
                     var port = addr.split(':')[1];
-                    api.socket.send("ping", port, ip, (err) => {
-                        if (!isFound) {
-                            if (err == null) {
-                                console.log("proper address fonud!", addr);
-                                delete data.addresses;
-                                data.address = addr;
-                                isFound = true;
-                                peerUpdate(data);
-                            }
-                            else {
-                                console.log("addr not valid", err);
-                            }
-                        }
+                    api.socket.send(message.build({ type: 'connect', uid: api.uid, host: api.host }), port, ip, (err) => {
                     })
                 })
             }
@@ -107,7 +117,7 @@ mdns.on('response', function (response) {
 
 function housekeeping() {
     var dt = new Date();
-    //remove peers that have been inactive for more than 3 min
+    //remove peers that has been inactive for more than 3 min
     peers = peers.filter((peer) => {
         return (peer.lastSeen > (dt.getTime() - 180000))
     })
@@ -123,6 +133,35 @@ function broadcast() {
         }]
     })
     housekeeping();
+}
+
+function peerConnect(address, uid, host) {
+    var rec = addrBook[address];
+    if (rec != undefined) {
+        if (uid == rec.uid && host == rec.host) {
+            var peer=getPeerByCode(rec.code);
+            if(peer!=undefined&&peer.address==address){
+                //A peer with this code already exists, just update it now
+                peerUpdate(rec);
+            }
+            else if(peer==undefined){
+                //A peer with such code is found for 1st time
+                peerUpdate(rec);
+            }
+        }
+        else {
+            console.error("[CONNECT] Check info mismatch");
+        }
+    }
+    else {
+        //console.error("\n[CONNECT] unknown address",uid,address,"\n");
+
+        //For situations where peer A finds peer B, but peer B is unable to discover peer A
+        /*var code = keyGen(6);
+        rec={ code, uid, host, name: "Discovered "+uid+' ('+host+')', icon: "default", address };
+        addrBook[address]=rec;
+        peerConnect(address, uid, host);*/
+    }
 }
 
 var api = {
@@ -154,9 +193,9 @@ var api = {
         });
 
         this.socket.on('message', (msg, rinfo) => {
-            //console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
             msg = message.parse(msg);
             if (msg.type != undefined) {
+                //console.log('server got:', JSON.stringify(msg), ' from ' + rinfo.address + ':' + rinfo.port);
                 var airId = getPeerAirId(rinfo.address + ':' + rinfo.port);
                 if (airId != null) {
                     msg.from = airId;
@@ -168,7 +207,11 @@ var api = {
                     }
                 }
                 else {
-                    console.warn("message received from unkown address", msg, rinfo);
+                    if (msg.type == 'connect') {
+                        peerConnect(rinfo.address + ':' + rinfo.port, msg.uid, msg.host);
+                    }
+                    else
+                        console.warn("message received from unkown address", msg, rinfo);
                 }
             }
         });
@@ -185,6 +228,7 @@ var api = {
     },
     request: function (to, key, body = null) {
         getPeerAddresses(to).forEach((address) => {
+            console.log("sending request to", address);
             console.log(address);
             var ip = address.split(':')[0];
             var port = address.split(':')[1];

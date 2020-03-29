@@ -22,7 +22,7 @@ var api = {
     uid: null,
     host: null,
     start: function (uid, host, name) {
-        //ws.start(uid, host);
+        ws.start(uid, host);
         local.start(uid, host, name);
     },
     stop: function () {
@@ -48,7 +48,7 @@ var api = {
             local.request(to, key, body);//
        }
         replies.on(key, (res) => {
-            var fromId = parseAirId(res.to);
+            var fromId = parseAirId(res.from);
             if (toId.uid == fromId.uid && toId.host == fromId.host) {
                 delete res.key;
                 res.parseBody = () => {
@@ -85,22 +85,22 @@ function receiveRequest(source, msg) {
 }
 
 ws.on("request", (msg) => {
-    console.log("new req from ws");
+    //console.log("new req from ws");
     api.emit("request", receiveRequest('global', msg));
 })
 
 ws.on("response", (msg) => {
-    console.log("new res from ws");
+    //console.log("new res from ws");
     replies.emit(msg.key, msg);
 })
 
 local.on("request", (msg) => {
-    console.log("new req from local");
+   // console.log("new req from local");
     api.emit("request", receiveRequest('local', msg));
 })
 
 local.on("response", (msg) => {
-    console.log("new res from local");
+    //console.log("new res from local");
     replies.emit(msg.key, msg);
 })
 
