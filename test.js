@@ -1,6 +1,6 @@
 const airPeer=require("./lib.js");
 
-airPeer.start("peer1","airbroker.herokuapp.com");
+airPeer.start("peer1","airbroker.herokuapp.com","Pix");
 
 var airId=null;
 
@@ -19,4 +19,13 @@ airPeer.on("request",(req)=>{
     setTimeout(()=>{
         req.respond(200,"Hello back!");
     },1000)
+})
+
+airPeer.on('localPeerFound',(rec)=>{
+    console.log("new peer found",rec);
+    var airId=rec.uid+':'+rec.host+':'+rec.sessionId;
+    airPeer.request(airId,"hello local friend!",(res)=>{
+        res.parseBody();
+        console.log("response arrived!",res);
+    })
 })

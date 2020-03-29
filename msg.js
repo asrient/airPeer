@@ -11,6 +11,9 @@ function buildMessage(obj) {
     if (obj.type == 'connect' && obj.uid != undefined) {
       msg += "uid=" + obj.uid + sep;
     }
+    if (obj.type == 'connect' && obj.host != undefined) {
+      msg += "host=" + obj.host + sep;
+    }
     if (obj.type == 'connected' && obj.airid != undefined) {
       msg += "airid=" + obj.airid + sep;
     }
@@ -73,6 +76,9 @@ function parseMessage(msg) {
         if (key != undefined && val != undefined) {
           if (data.type != undefined) {
             if (key == 'uid' && data.type == 'connect') {
+              data[key] = val;
+            }
+            if (key == 'host' && data.type == 'connect') {
               data[key] = val;
             }
             else if (key == 'airid' && data.type == 'connected') {
