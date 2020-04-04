@@ -21,15 +21,15 @@ var replies = new Emitter;
 var api = {
     uid: null,
     host: null,
-    start: function (uid, host, name) {
+    start: function (uid, host, app, name) {
         ws.start(uid, host);
-        local.start(uid, host, name);
+        local.start(uid, host, app, name);
     },
     stop: function () {
 
     },
     localPeers: function () {
-      return local.getPeers();
+        return local.getPeers();
     },
     request: function (to, body, cb = function () { }) {
         var key = keyGen();
@@ -41,12 +41,12 @@ var api = {
                 source = 'global';
             }
         }
-        if(source=='all'||source=='global'){
-             ws.request(to, key, body);//
+        if (source == 'all' || source == 'global') {
+            ws.request(to, key, body);//
         }
-        if(source=='all'||source=='local'){
+        if (source == 'all' || source == 'local') {
             local.request(to, key, body);//
-       }
+        }
         replies.on(key, (res) => {
             var fromId = parseAirId(res.from);
             if (toId.uid == fromId.uid && toId.host == fromId.host) {
@@ -95,7 +95,7 @@ ws.on("response", (msg) => {
 })
 
 local.on("request", (msg) => {
-   // console.log("new req from local");
+    // console.log("new req from local");
     api.emit("request", receiveRequest('local', msg));
 })
 
@@ -108,8 +108,16 @@ ws.on("connection", (airId) => {
     api.emit("connection", airId);
 })
 
+ws.on("disconnection", (airId) => {
+    api.emit("disconnection", airId);
+})
+
 local.on("localPeerFound", (rec) => {
     api.emit("localPeerFound", rec);
+})
+
+local.on("localPeerRemoved", (rec) => {
+    api.emit("localPeerRemoved", rec);
 })
 
 module.exports = api;

@@ -1,6 +1,6 @@
 const airPeer=require("./lib.js");
 
-airPeer.start("peer1","airbroker.herokuapp.com","Pix");
+airPeer.start("peer1","airbroker.herokuapp.com","testapp","Pix");
 
 var airId=null;
 

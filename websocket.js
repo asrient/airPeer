@@ -6,6 +6,7 @@ var api = {
     isInit: false,
     willDisconnect: false,
     isUpgraded: false,
+    retries: 0,
     host: "airbroker.herokuapp.com",
     port: 80,
     socket: null,
@@ -16,8 +17,19 @@ var api = {
             this.isUpgraded = false;
             this.sessionId = null;
             this.socket = null;
-            console.log("reconnecting...");
-            this.connect();
+            this.retries++;
+            if (this.retries <= 10) {
+                console.log("reconnecting...");
+                this.connect();
+            }
+            else{
+                console.error("No internet connection");
+                api.emit('disconnection');
+                setTimeout(()=>{
+                    this.retries = 5;
+                    this.reconnect();
+                },10000)
+            }
         }
     },
     connect: function () {
@@ -52,6 +64,7 @@ var api = {
                     if (msg.type == 'connected') {
                         var airId = msg.airid;
                         this.sessionId = airId.split(':')[2];
+                        this.retries = 0;
                         console.log("connected!.", airId);
                         api.emit('connection', airId);
                     }

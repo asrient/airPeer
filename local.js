@@ -56,8 +56,8 @@ function peerUpdate(rec) {
         return (peer.uid == rec.uid && peer.host == rec.host && peer.address == rec.address && peer.code == rec.code)
     })
     if (ind >= 0) {
-        if(peers[ind].name!=rec.name||peers[ind].icon != rec.icon){
-            console.log("Updating name & icon",peers[ind].name,rec.name)
+        if (peers[ind].name != rec.name || peers[ind].icon != rec.icon) {
+            console.log("Updating name & icon", peers[ind].name, rec.name)
         }
         peers[ind].name = rec.name;
         peers[ind].icon = rec.icon;
@@ -71,6 +71,7 @@ function peerUpdate(rec) {
             address: rec.address,
             name: rec.name,
             icon: rec.icon,
+            app: rec.app,
             code: rec.code,
             sessionId: 'local.' + keyGen(),
             lastSeen: dt.getTime()
@@ -95,13 +96,13 @@ mdns.on('response', function (response) {
                 //check if an address from the set already exists, then use its code
                 data.addresses.forEach((addr) => {
                     if (addrBook[addr] != undefined) {
-                       //console.log("[DISCOVERY] peer has an address regestered already")
-                       code=addrBook[addr].code;
+                        //console.log("[DISCOVERY] peer has an address regestered already")
+                        code = addrBook[addr].code;
                     }
                 })
                 data.addresses.forEach((addr) => {
                     if (addrBook[addr] == undefined) {
-                        addrBook[addr] = { code, uid: data.uid, host: data.host, name: data.name, icon: data.icon, address: addr }
+                        addrBook[addr] = { code, uid: data.uid, app: data.app, host: data.host, name: data.name, icon: data.icon, address: addr }
                     }
                     var ip = addr.split(':')[0];
                     var port = addr.split(':')[1];
@@ -119,12 +120,23 @@ function housekeeping() {
     var dt = new Date();
     //remove peers that has been inactive for more than 3 min
     peers = peers.filter((peer) => {
-        return (peer.lastSeen > (dt.getTime() - 180000))
+        var willStay=(peer.lastSeen > (dt.getTime() - 180000));
+        if(!willStay){
+            api.emit('localPeerRemoved', peer);
+        }
+        return willStay;
     })
 }
 
 function broadcast() {
-    var rec = ['uid=' + api.uid, 'host=' + api.host, 'name=' + api.name, 'icon=default', 'addresses=' + JSON.stringify(api.addresses)];
+    var rec = [
+        'uid=' + api.uid,
+        'host=' + api.host,
+        'app=' + api.app,
+        'name=' + api.name,
+        'icon=default',
+        'addresses=' + JSON.stringify(api.addresses)
+    ];
     mdns.response({
         answers: [{
             name: 'air.local',
@@ -139,12 +151,12 @@ function peerConnect(address, uid, host) {
     var rec = addrBook[address];
     if (rec != undefined) {
         if (uid == rec.uid && host == rec.host) {
-            var peer=getPeerByCode(rec.code);
-            if(peer!=undefined&&peer.address==address){
+            var peer = getPeerByCode(rec.code);
+            if (peer != undefined && peer.address == address) {
                 //A peer with this code already exists, just update it now
                 peerUpdate(rec);
             }
-            else if(peer==undefined){
+            else if (peer == undefined) {
                 //A peer with such code is found for 1st time
                 peerUpdate(rec);
             }
@@ -170,11 +182,13 @@ var api = {
     host: "airbroker.herokuapp.com",
     socket: null,
     name: null,
+    app: null,
     uid: null,
     addresses: [],
-    start: function (uid, host, name) {
+    start: function (uid, host, app, name) {
         this.uid = uid;
         this.host = host;
+        this.app = app;
         this.name = name;
         var network = os.networkInterfaces();
         Object.keys(network).forEach((connName) => {
