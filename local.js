@@ -248,7 +248,7 @@ var api = {
             var port = address.split(':')[1];
             port = parseInt(port);
             this.socket.send(message.build({ type: 'request', to, key, body }), port, ip, (err) => {
-                console.log("req message sent!", err)
+              //  console.log("req message sent!", err)
             });
         })
     },
@@ -258,7 +258,7 @@ var api = {
             var port = address.split(':')[1];
             port = parseInt(port);
             this.socket.send(message.build({ type: 'response', to, key, status, body }), port, ip, (err) => {
-                console.log("res message sent!", err)
+              //  console.log("res message sent!", err)
             });
         })
     },

@@ -18,22 +18,22 @@ var api = {
             this.sessionId = null;
             this.socket = null;
             this.retries++;
-            if (this.retries <= 10) {
+            if (this.retries < 3) {
                 console.log("reconnecting...");
                 this.connect();
             }
-            else{
+            else {
                 console.error("No internet connection");
                 api.emit('disconnection');
-                setTimeout(()=>{
-                    this.retries = 5;
+                setTimeout(() => {
+                    this.retries = 1;
                     this.reconnect();
-                },10000)
+                }, 40000)
             }
         }
     },
-    write:function(stuffs){
-        if(this.socket!=null){
+    write: function (stuffs) {
+        if (this.socket != null) {
             this.socket.write(stuffs);
         }
     },
@@ -97,7 +97,7 @@ var api = {
     start: function (uid, host, port = 80) {
         this.uid = uid;
         this.host = host,
-            this.port = port;
+        this.port = port;
         if (!this.isInit) {
             this.connect();
         }
