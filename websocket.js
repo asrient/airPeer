@@ -18,15 +18,15 @@ var api = {
             this.sessionId = null;
             this.socket = null;
             this.retries++;
-            if (this.retries < 3) {
+            if (this.retries < 4) {
                 console.log("reconnecting...");
                 this.connect();
             }
             else {
                 console.error("No internet connection");
                 api.emit('disconnection');
+                this.retries = 0;
                 setTimeout(() => {
-                    this.retries = 1;
                     this.reconnect();
                 }, 40000)
             }
@@ -84,7 +84,7 @@ var api = {
         })
         this.socket.on("error", (msg) => {
             console.error(msg);
-            this.reconnect();
+            //this.reconnect();
         })
         this.socket.on("close", (msg) => {
             console.log("socket closed!");
