@@ -1,4 +1,4 @@
-const airPeer=require("./lib.js");
+const airPeer=require("../lib.js");
 
 airPeer.start("peer1","airbroker.herokuapp.com","testapp","Pix");
 

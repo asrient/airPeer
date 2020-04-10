@@ -118,9 +118,9 @@ mdns.on('response', function (response) {
 
 function housekeeping() {
     var dt = new Date();
-    //remove peers that has been inactive for more than 3 min
+    //remove peers that has been inactive for more than 6 secs
     peers = peers.filter((peer) => {
-        var willStay=(peer.lastSeen > (dt.getTime() - 180000));
+        var willStay=(peer.lastSeen > (dt.getTime() - 6000));
         if(!willStay){
             api.emit('localPeerRemoved', peer);
         }
@@ -236,7 +236,7 @@ var api = {
                 return addr + ':' + port;
             })
             broadcast();
-            setInterval(broadcast, 1500);
+            setInterval(broadcast, 2000);
         });
         this.socket.bind();//////////
     },

@@ -32,11 +32,16 @@ var api = {
             }
         }
     },
+    write:function(stuffs){
+        if(this.socket!=null){
+            this.socket.write(stuffs);
+        }
+    },
     connect: function () {
         this.socket = net.createConnection({ host: this.host, port: this.port }, () => {
             // 'connect' listener.
             console.log('connected to server! Upgrading..');
-            this.socket.write("GET / HTTP/1.1\r\n" +
+            this.write("GET / HTTP/1.1\r\n" +
                 "Host: " + this.host + "\r\n" +
                 "Upgrade-Insecure-Requests: 1\r\n" +
                 "Upgrade: websocket\r\n" +
@@ -50,7 +55,7 @@ var api = {
                 var title = str.split("\r\n")[0];
                 if (title == "HTTP/1.1 101 Switching Protocols") {
                     console.log("upgraded! now connecting...");
-                    this.socket.write(message.build({ type: 'connect', uid: this.uid }));
+                    this.write(message.build({ type: 'connect', uid: this.uid }));
                     this.isUpgraded = true;
                 }
                 else {
@@ -105,10 +110,10 @@ var api = {
         this.willDisconnect = true;
     },
     request: function (to, key, body = null) {
-        this.socket.write(message.build({ type: 'request', to, key, body }));
+        this.write(message.build({ type: 'request', to, key, body }));
     },
     reply: function (to, key, status = 200, body = null) {
-        this.socket.write(message.build({ type: 'response', to, key, status, body }));
+        this.write(message.build({ type: 'response', to, key, status, body }));
     }
 }
 
