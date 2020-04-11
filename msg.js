@@ -14,6 +14,15 @@ function buildMessage(obj) {
     if (obj.type == 'connect' && obj.host != undefined) {
       msg += "host=" + obj.host + sep;
     }
+    if (obj.type == 'connect' && obj.name != undefined) {
+      msg += "name=" + obj.name + sep;
+    }
+    if (obj.type == 'connect' && obj.icon != undefined) {
+      msg += "icon=" + obj.icon + sep;
+    }
+    if (obj.type == 'connect' && obj.app != undefined) {
+      msg += "app=" + obj.app + sep;
+    }
     if (obj.type == 'connected' && obj.airid != undefined) {
       msg += "airid=" + obj.airid + sep;
     }
@@ -35,13 +44,13 @@ function buildMessage(obj) {
   msg += sep;
   var buff = Buffer.from(msg);
   if (obj.body != undefined) {
-    if(!Buffer.isBuffer(obj.body)){
-      obj.body=Buffer.from(obj.body);
+    if (!Buffer.isBuffer(obj.body)) {
+      obj.body = Buffer.from(obj.body);
     }
-    return Buffer.concat([buff,obj.body])
+    return Buffer.concat([buff, obj.body])
   }
   else
-  return buff;
+    return buff;
 }
 
 function parseMessage(msg) {
@@ -75,6 +84,9 @@ function parseMessage(msg) {
         val = val.trim();
         if (key != undefined && val != undefined) {
           if (data.type != undefined) {
+            if ((key == 'name' || key == 'app' || key == 'icon') && data.type == 'connect') {
+              data[key] = val;
+            }
             if (key == 'uid' && data.type == 'connect') {
               data[key] = val;
             }
@@ -106,4 +118,4 @@ function parseMessage(msg) {
   return data;
 }
 
-module.exports={parse:parseMessage,build:buildMessage}
+module.exports = { parse: parseMessage, build: buildMessage }

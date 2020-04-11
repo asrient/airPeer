@@ -53,12 +53,13 @@ function getPeerAirId(address) {
 function peerUpdate(rec) {
     var dt = new Date();
     var ind = peers.findIndex((peer) => {
-        return (peer.uid == rec.uid && peer.host == rec.host && peer.address == rec.address && peer.code == rec.code)
+        return (peer.uid == rec.uid && peer.host == rec.host && peer.code == rec.code)
     })
     if (ind >= 0) {
         if (peers[ind].name != rec.name || peers[ind].icon != rec.icon) {
             console.log("Updating name & icon", peers[ind].name, rec.name)
         }
+        peers[ind].address = rec.address;
         peers[ind].name = rec.name;
         peers[ind].icon = rec.icon;
         peers[ind].lastSeen = dt.getTime();
@@ -77,6 +78,8 @@ function peerUpdate(rec) {
             lastSeen: dt.getTime()
         }
         peers.push(record);
+        console.log(peers[peers.length - 1]);
+        console.log(peers);
         api.emit('localPeerFound', record);
     }
 }
@@ -90,7 +93,6 @@ mdns.on('response', function (response) {
                 data[r[0].trim()] = r[1].trim();
             })
             if (data.uid != undefined && data.host != undefined && data.addresses != undefined) {
-                //console.log("[DISCOVERY]",data.uid,data.addresses);
                 data.addresses = JSON.parse(data.addresses);
                 var code = keyGen(6);
                 //check if an address from the set already exists, then use its code
@@ -106,7 +108,7 @@ mdns.on('response', function (response) {
                     }
                     var ip = addr.split(':')[0];
                     var port = addr.split(':')[1];
-                    api.socket.send(message.build({ type: 'connect', uid: api.uid, host: api.host }), port, ip, (err) => {
+                    api.socket.send(message.build({ type: 'connect', uid: api.uid, host: api.host, name: api.name, app: api.app }), port, ip, (err) => {
                     })
                 })
             }
@@ -120,8 +122,9 @@ function housekeeping() {
     var dt = new Date();
     //remove peers that has been inactive for more than 6 secs
     peers = peers.filter((peer) => {
-        var willStay=(peer.lastSeen > (dt.getTime() - 6000));
-        if(!willStay){
+        var willStay = (peer.lastSeen > (dt.getTime() - 20000));
+        if (!willStay) {
+            console.log("removing peer", peer)
             api.emit('localPeerRemoved', peer);
         }
         return willStay;
@@ -147,32 +150,39 @@ function broadcast() {
     housekeeping();
 }
 
-function peerConnect(address, uid, host) {
+function peerConnect(address, msg) {
+    var uid = msg.uid;
+    var host = msg.host;
     var rec = addrBook[address];
     if (rec != undefined) {
         if (uid == rec.uid && host == rec.host) {
             var peer = getPeerByCode(rec.code);
-            if (peer != undefined && peer.address == address) {
+            if (peer != undefined) {
                 //A peer with this code already exists, just update it now
+                if (msg.uid != api.uid)
+                    //console.warn("A peer with this code already exists, just update it now", peer, rec, address)
                 peerUpdate(rec);
             }
             else if (peer == undefined) {
                 //A peer with such code is found for 1st time
+                //console.warn("A peer with such code is found for 1st time", rec, address)
                 peerUpdate(rec);
             }
+
         }
         else {
             console.error("[CONNECT] Check info mismatch");
         }
     }
     else {
-        //console.error("\n[CONNECT] unknown address",uid,address,"\n");
+        if (api.uid != uid)
+            console.error("\n[CONNECT] unknown address", uid, address, "\n");
 
         //For situations where peer A finds peer B, but peer B is unable to discover peer A
-        /*var code = keyGen(6);
-        rec={ code, uid, host, name: "Discovered "+uid+' ('+host+')', icon: "default", address };
-        addrBook[address]=rec;
-        peerConnect(address, uid, host);*/
+         /*var code = keyGen(6);
+         rec = { code, uid, host, name: msg.name, icon: "default", address, app: msg.app };
+         addrBook[address] = rec;
+         peerConnect(address, msg);*/
     }
 }
 
@@ -220,13 +230,10 @@ var api = {
                         api.emit('response', msg);
                     }
                 }
-                else {
-                    if (msg.type == 'connect') {
-                        peerConnect(rinfo.address + ':' + rinfo.port, msg.uid, msg.host);
-                    }
-                    else
-                        console.warn("message received from unkown address", msg, rinfo);
+                if (msg.type == 'connect') {
+                    peerConnect(rinfo.address + ':' + rinfo.port, msg);
                 }
+
             }
         });
 
@@ -248,7 +255,7 @@ var api = {
             var port = address.split(':')[1];
             port = parseInt(port);
             this.socket.send(message.build({ type: 'request', to, key, body }), port, ip, (err) => {
-              //  console.log("req message sent!", err)
+                //  console.log("req message sent!", err)
             });
         })
     },
@@ -258,7 +265,7 @@ var api = {
             var port = address.split(':')[1];
             port = parseInt(port);
             this.socket.send(message.build({ type: 'response', to, key, status, body }), port, ip, (err) => {
-              //  console.log("res message sent!", err)
+                //  console.log("res message sent!", err)
             });
         })
     },
