@@ -22,7 +22,12 @@ var api = {
     uid: null,
     host: null,
     start: function (uid, host, app, name) {
-        ws.start(uid, host);
+        var port = 80;
+        if (host.split(':')[1] != undefined) {
+            port = parseInt(host.split(':')[1]);
+            host = host.split(':')[0];
+        }
+        //ws.start(uid, host, port);
         local.start(uid, host, app, name);
     },
     stop: function () {
@@ -32,7 +37,7 @@ var api = {
         return local.getPeers();
     },
     request: function (to, body, cb = function () { }) {
-        var key = keyGen();
+        var key = crypto.randomBytes(8);
         var toId = parseAirId(to);
         var source = 'all';
         if (toId.sessionId != undefined) {
@@ -62,10 +67,8 @@ var api = {
 
 Emitter(api);
 
-function receiveRequest(source, msg) {
-    var key = msg.key;
+function receiveRequest(source, key, msg) {
     var from = msg.from;
-    delete msg.key;
     msg.source = source;
     msg.parseBody = () => {
         msg.body = Buffer.from(msg.body).toString();
@@ -84,24 +87,24 @@ function receiveRequest(source, msg) {
     return msg;
 }
 
-ws.on("request", (msg) => {
+ws.on("request", (req) => {
     //console.log("new req from ws");
-    api.emit("request", receiveRequest('global', msg));
+    api.emit("request", receiveRequest('global', req.key, req.message));
 })
 
-ws.on("response", (msg) => {
+ws.on("response", (res) => {
     //console.log("new res from ws");
-    replies.emit(msg.key, msg);
+    replies.emit(res.key, res.message);
 })
 
-local.on("request", (msg) => {
+local.on("request", (req) => {
     // console.log("new req from local");
-    api.emit("request", receiveRequest('local', msg));
+    api.emit("request", receiveRequest('local', req.key, req.message));
 })
 
-local.on("response", (msg) => {
+local.on("response", (res) => {
     //console.log("new res from local");
-    replies.emit(msg.key, msg);
+    replies.emit(res.key, res.message);
 })
 
 ws.on("connection", (airId) => {

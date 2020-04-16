@@ -1,36 +1,53 @@
-const airPeer=require("../lib.js");
+const airPeer = require("../lib.js");
+const fs = require('fs');
 
-airPeer.start("peer1","airbroker.herokuapp.com","testapp","Pix");
+airPeer.start("peer1", "localhost:3000", "testapp", "Pix");
 
-var airId=null;
+var airId = null;
 
-airPeer.on("connection",(id)=>{
-    airId=id;
-    console.log("CONNECTED AS ",id);
-    airPeer.request(airId,"hello friend!",(res)=>{
-        res.parseBody();
-        console.log("response arrived!",res);
+airPeer.on("connection", (id) => {
+    airId = id;
+    console.log("CONNECTED AS ", id);
+    console.log("sending request...");
+
+    airPeer.request(airId, 'in.jpg', (res) => {
+        console.log("response ended!");
+        fs.writeFile("out.jpg", res.body, () => {
+            console.log("file written!")
+        });
+    })
+   /* setTimeout(() => {
+        airPeer.request(airId, 'in1.jpg', (res) => {
+            console.log("response ended!");
+            fs.writeFile("out1.jpg", res.body, () => {
+                console.log("file written!")
+            });
+        })
+    }, 30)*/
+
+})
+
+airPeer.on("request", (req) => {
+    console.log("A req arrived!");
+    req.parseBody();
+    fs.readFile(req.body, (err, data) => {
+        if (data != null) {
+            req.respond(200, data);
+       }
     })
 })
 
-airPeer.on("request",(req)=>{
-    req.parseBody();
-    console.log("A req arrived!",req);
-    setTimeout(()=>{
-        console.log("sending response...");
-        req.respond(200,"Hello back!");
-    },1000)
-})
+airPeer.on('localPeerFound', (rec) => {
+    var airId = rec.uid + ':' + rec.host + ':' + rec.sessionId;
+     setTimeout(()=>{
+        console.log("sending request to",airId);
+        airPeer.request(airId, 'in.jpg', (res) => {
+            console.log("response ended!");
+            fs.writeFile("out.jpg", res.body, () => {
+                console.log("file written!")
+            });
+        }) 
+     },1000)
 
-airPeer.on('localPeerFound',(rec)=>{
-    console.log("new peer found",rec);
-    if(rec.uid!='peer1'){
-        var id=rec.uid+':'+rec.host+':'+rec.sessionId;
-       console.log("[new local peer]",id);
-    airPeer.request(id,"hello local friend!",(res)=>{
-        res.parseBody();
-        console.log("response arrived!",res);
-    }) 
-    }
-    
+
 })

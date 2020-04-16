@@ -1,12 +1,15 @@
 const Emitter = require("component-emitter");
 const mdns = require('multicast-dns')();
 const crypto = require('crypto');
+const frame = require('./frame.js');
 const os = require('os');
 const dgram = require('dgram');
 const message = require('./msg.js');
 
 var peers = [];
 var addrBook = {};
+
+const frameSize = 65535;
 
 function parseAirId(airId) {
     var ids = airId.split(':');
@@ -108,8 +111,7 @@ mdns.on('response', function (response) {
                     }
                     var ip = addr.split(':')[0];
                     var port = addr.split(':')[1];
-                    api.socket.send(message.build({ type: 'connect', uid: api.uid, host: api.host, name: api.name, app: api.app }), port, ip, (err) => {
-                    })
+                    api.sendFrame(crypto.randomBytes(8), message.build({ type: 'connect', uid: api.uid, host: api.host, name: api.name, app: api.app }), port, ip)
                 })
             }
             else
@@ -159,8 +161,7 @@ function peerConnect(address, msg) {
             var peer = getPeerByCode(rec.code);
             if (peer != undefined) {
                 //A peer with this code already exists, just update it now
-                if (msg.uid != api.uid)
-                    //console.warn("A peer with this code already exists, just update it now", peer, rec, address)
+                //console.warn("A peer with this code already exists, just update it now", peer, rec, address)
                 peerUpdate(rec);
             }
             else if (peer == undefined) {
@@ -179,10 +180,10 @@ function peerConnect(address, msg) {
             console.error("\n[CONNECT] unknown address", uid, address, "\n");
 
         //For situations where peer A finds peer B, but peer B is unable to discover peer A
-         /*var code = keyGen(6);
-         rec = { code, uid, host, name: msg.name, icon: "default", address, app: msg.app };
-         addrBook[address] = rec;
-         peerConnect(address, msg);*/
+        /*var code = keyGen(6);
+        rec = { code, uid, host, name: msg.name, icon: "default", address, app: msg.app };
+        addrBook[address] = rec;
+        peerConnect(address, msg);*/
     }
 }
 
@@ -195,16 +196,19 @@ var api = {
     app: null,
     uid: null,
     addresses: [],
+    ongoing: {},
     start: function (uid, host, app, name) {
         this.uid = uid;
         this.host = host;
         this.app = app;
         this.name = name;
+        this.ongoing = {};
         var network = os.networkInterfaces();
         Object.keys(network).forEach((connName) => {
             var addr = null;
             network[connName].forEach((conn) => {
                 if (conn.family == 'IPv4') {
+                    if(conn.address!='127.0.0.1')
                     this.addresses.push(conn.address);
                 }
             })
@@ -217,23 +221,49 @@ var api = {
         });
 
         this.socket.on('message', (msg, rinfo) => {
-            msg = message.parse(msg);
-            if (msg.type != undefined) {
-                //console.log('server got:', JSON.stringify(msg), ' from ' + rinfo.address + ':' + rinfo.port);
+            done = (m) => {
                 var airId = getPeerAirId(rinfo.address + ':' + rinfo.port);
                 if (airId != null) {
-                    msg.from = airId;
-                    if (msg.type == 'request') {
-                        api.emit('request', msg);
+                    m.from = airId;
+                    if (m.type == 'request') {
+                        api.emit('request', { key, message: m });
                     }
-                    else if (msg.type == 'response') {
-                        api.emit('response', msg);
+                    else if (m.type == 'response') {
+                        console.log("got a response");
+                        api.emit('response', { key, message: m });
                     }
                 }
-                if (msg.type == 'connect') {
-                    peerConnect(rinfo.address + ':' + rinfo.port, msg);
+                if (m.type == 'connect') {
+                    peerConnect(rinfo.address + ':' + rinfo.port, m);
                 }
-
+                else
+                console.log("got a msg from unknown address",m,rinfo.address + ':' + rinfo.port);
+            }
+            var chunk = frame.parse(msg);
+            var key = chunk.key;
+            var fin = chunk.fin;
+            var data = chunk.data;
+            if (this.ongoing[key] != undefined) {
+                var stream = this.ongoing[key].data;
+                this.ongoing[key].data = Buffer.concat([stream, data]);
+                if (fin) {
+                    var m = message.parse(this.ongoing[key].data);
+                    done(m);
+                    delete this.ongoing[key];
+                }
+                else {
+                    //now is a good time to emit events for partial data receiving
+                }
+            }
+            else {
+                if (fin) {
+                    var m = message.parse(data);
+                    done(m);
+                }
+                else {
+                    //more chunks r supposed to arrive, for reference store this chunk in ongoing
+                    this.ongoing[key] = { data };
+                }
             }
         });
 
@@ -247,16 +277,61 @@ var api = {
         });
         this.socket.bind();//////////
     },
+    send: function (msg, port, ip) {
+        if (msg != null) {
+            this.socket.send(msg, port, ip);
+        }
+    },
+    sendFrame: function (key, msg, port, ip) {
+        send = () => {
+            if (offset < last) {
+                end = offset + frameSize - 50;//
+                if (end > last) {
+                    end = last;
+                }
+                chunk = msg.slice(offset, end);
+                fin = false;
+                if (end == last) {
+                    fin = true;
+                }
+                var frm = frame.build(fin, key, chunk);
+                console.log("sending res chunk size", frm.length);
+                this.send(frm, port, ip);
+                offset = end;
+            }
+        }
+        schedule = () => {
+            setTimeout(() => {
+                if (!fin) {
+                    send();
+                    schedule();
+                }
+            }, 3)
+        }
+        if (msg.length > frameSize) {
+            //size too large to be sent together, break them up!
+            var offset = 0;
+            var last = msg.length - 1;
+            var end = 0;
+            var chunk;
+            var fin = false;
+            send();
+            if (!fin) {
+                schedule();
+            }
+        }
+        else {
+            //msg can be sent at once
+            this.send(frame.build(true, key, msg), port, ip);
+        }
+    },
     request: function (to, key, body = null) {
         getPeerAddresses(to).forEach((address) => {
-            console.log("sending request to", address);
-            console.log(address);
             var ip = address.split(':')[0];
             var port = address.split(':')[1];
             port = parseInt(port);
-            this.socket.send(message.build({ type: 'request', to, key, body }), port, ip, (err) => {
-                //  console.log("req message sent!", err)
-            });
+            console.log("sending req to",address);
+            this.sendFrame(key, message.build({ type: 'request', to, body }), port, ip);
         })
     },
     reply: function (to, key, status = 200, body = null) {
@@ -264,9 +339,7 @@ var api = {
             var ip = address.split(':')[0];
             var port = address.split(':')[1];
             port = parseInt(port);
-            this.socket.send(message.build({ type: 'response', to, key, status, body }), port, ip, (err) => {
-                //  console.log("res message sent!", err)
-            });
+            this.sendFrame(key, message.build({ type: 'response', to, status, body }), port, ip);
         })
     },
     getPeers: function () {
