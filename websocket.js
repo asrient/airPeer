@@ -4,10 +4,11 @@ const message = require('./msg.js');
 const crypto = require('crypto');
 const frame = require('./frame.js');
 
-const frameSize = 65535;
+const frameSize = 64535;//65535;
 
 var api = {
     ongoing: {},
+    roaming: null,
     isInit: false,
     willDisconnect: false,
     isUpgraded: false,
@@ -40,7 +41,19 @@ var api = {
     },
     write: function (stuffs) {
         if (stuffs != null && this.socket != null) {
+            this.socket.cork();
             this.socket.write(stuffs);
+            this.socket.uncork();
+        }
+    },
+    cork: function () {
+        if (this.socket != null) {
+            this.socket.cork();
+        }
+    },
+    uncork: function () {
+        if (this.socket != null) {
+            this.socket.uncork();
         }
     },
     connect: function () {
@@ -55,7 +68,7 @@ var api = {
                 "\r\n");
         });
         this.socket.setNoDelay(true);
-        this.socket.uncork();
+        //this.socket.uncork();
         this.socket.on("data", (msg) => {
             if (!this.isUpgraded) {
                 var str = Buffer.from(msg).toString();
@@ -71,61 +84,68 @@ var api = {
             }
             else {
                 //already upgraded
-                var chunk = frame.parse(msg);
-                var key = chunk.key;
-                var fin = chunk.fin;
-                var data = chunk.data;
-                if (this.sessionId == null) {
-                    //not connected yet!
-                    var m = message.parse(data);
-                    if (m.type == 'connected') {
-                        var airId = m.airid;
-                        this.sessionId = airId.split(':')[2];
-                        this.retries = 0;
-                        this.ongoing = {};
-                        console.log("connected!", airId);
-                        api.emit('connection', airId);
-                    }
+                var feed = msg;
+                if (this.roaming != null) {
+                    feed = Buffer.concat([this.roaming, msg]);
                 }
-                else {
-                    if (this.ongoing[key] != undefined) {
-                        var stream = this.ongoing[key].data;
-                        this.ongoing[key].data = Buffer.concat([stream, data]);
-                        if (fin) {
-                            var m = message.parse(this.ongoing[key].data);
-                            if (m.type != undefined) {
-                                if (m.type == 'request') {
-                                    api.emit('request', { key, message: m });
-                                }
-                                else if (m.type == 'response') {
-                                    api.emit('response', { key, message: m });
-                                }
-                            }
-                            delete this.ongoing[key];
-                        }
-                        else {
-                            //now is a good time to emit events for partial data receiving
+                const parsedFrame = frame.parse(feed);
+                this.roaming = parsedFrame.roaming;
+                parsedFrame.chunks.forEach((chunk) => {
+                    var key = chunk.key;
+                    var fin = chunk.fin;
+                    var data = chunk.data;
+                    if (this.sessionId == null) {
+                        //not connected yet!
+                        var m = message.parse(data);
+                        if (m.type == 'connected') {
+                            var airId = m.airid;
+                            this.sessionId = airId.split(':')[2];
+                            this.retries = 0;
+                            this.ongoing = {};
+                            console.log("connected!", airId);
+                            api.emit('connection', airId);
                         }
                     }
                     else {
-                        if (fin) {
-                            var m = message.parse(data);
-                            if (m.type != undefined) {
-
-                                if (m.type == 'request') {
-                                    api.emit('request', { key, message: m });
+                        if (this.ongoing[key] != undefined) {
+                            var stream = this.ongoing[key].data;
+                            this.ongoing[key].data = Buffer.concat([stream, data]);
+                            if (fin) {
+                                var m = message.parse(this.ongoing[key].data);
+                                if (m.type != undefined) {
+                                    if (m.type == 'request') {
+                                        api.emit('request', { key, message: m });
+                                    }
+                                    else if (m.type == 'response') {
+                                        api.emit('response', { key, message: m });
+                                    }
                                 }
-                                else if (m.type == 'response') {
-                                    api.emit('response', { key, message: m });
-                                }
+                                delete this.ongoing[key];
+                            }
+                            else {
+                                //now is a good time to emit events for partial data receiving
                             }
                         }
                         else {
-                            //more chunks r supposed to arrive, for reference store this chunk in ongoing
-                            this.ongoing[key] = { data };
+                            if (fin) {
+                                var m = message.parse(data);
+                                if (m.type != undefined) {
+
+                                    if (m.type == 'request') {
+                                        api.emit('request', { key, message: m });
+                                    }
+                                    else if (m.type == 'response') {
+                                        api.emit('response', { key, message: m });
+                                    }
+                                }
+                            }
+                            else {
+                                //more chunks r supposed to arrive, for reference store this chunk in ongoing
+                                this.ongoing[key] = { data };
+                            }
                         }
                     }
-                }
+                })
             }
         })
         this.socket.on("error", (msg) => {
@@ -159,6 +179,7 @@ var api = {
     sendFrame: function (key, msg) {
         send = () => {
             if (offset < last) {
+                console.log("---sending a chunk---");
                 end = offset + frameSize - 50;//
                 if (end > last) {
                     end = last;
@@ -169,21 +190,25 @@ var api = {
                     fin = true;
                 }
                 var frm = frame.build(fin, key, chunk);
-                console.log("sending res chunk size", frm.length);
+                console.log('FIN', fin);
+                console.log('KEY', key.toString());
                 this.write(frm);
                 offset = end;
+                console.log('--------------------')
             }
+            else
+                console.error('offset > last');
         }
         schedule = () => {
-            setTimeout(() => {
                 if (!fin) {
+                    console.log('SCHEDULING..');
                     send();
                     schedule();
                 }
-            }, 3)
         }
         if (msg.length > frameSize) {
             //size too large to be sent together, break them up!
+            console.log('size too large to be sent together, break them up!');
             var offset = 0;
             var last = msg.length - 1;
             var end = 0;
@@ -200,11 +225,13 @@ var api = {
         }
     },
     request: function (to, keyStr, body = null) {
+        console.log('-----building new request-------');
         var key = Buffer.from(keyStr);
         var msg = message.build({ type: 'request', to, body });
         this.sendFrame(key, msg);
     },
     reply: function (to, keyStr, status = 200, body = null) {
+        console.log('-----building new response-------');
         var key = Buffer.from(keyStr);
         var msg = message.build({ type: 'response', to, status, body });
         this.sendFrame(key, msg)

@@ -9,7 +9,7 @@ const message = require('./msg.js');
 var peers = [];
 var addrBook = {};
 
-const frameSize = 65535;
+const frameSize = 64535;
 
 function parseAirId(airId) {
     var ids = airId.split(':');
@@ -196,20 +196,22 @@ var api = {
     app: null,
     uid: null,
     addresses: [],
+    roaming: null,
     ongoing: {},
     start: function (uid, host, app, name) {
         this.uid = uid;
         this.host = host;
         this.app = app;
         this.name = name;
+        this.roaming = null;
         this.ongoing = {};
         var network = os.networkInterfaces();
         Object.keys(network).forEach((connName) => {
             var addr = null;
             network[connName].forEach((conn) => {
                 if (conn.family == 'IPv4') {
-                    if(conn.address!='127.0.0.1')
-                    this.addresses.push(conn.address);
+                    if (conn.address != '127.0.0.1')
+                        this.addresses.push(conn.address);
                 }
             })
         })
@@ -221,7 +223,7 @@ var api = {
         });
 
         this.socket.on('message', (msg, rinfo) => {
-            done = (m) => {
+            done = (key, m) => {
                 var airId = getPeerAirId(rinfo.address + ':' + rinfo.port);
                 if (airId != null) {
                     m.from = airId;
@@ -237,34 +239,41 @@ var api = {
                     peerConnect(rinfo.address + ':' + rinfo.port, m);
                 }
                 else
-                console.log("got a msg from unknown address",m,rinfo.address + ':' + rinfo.port);
+                    console.log("got a msg from unknown address", m, rinfo.address + ':' + rinfo.port);
             }
-            var chunk = frame.parse(msg);
-            var key = chunk.key;
-            var fin = chunk.fin;
-            var data = chunk.data;
-            if (this.ongoing[key] != undefined) {
-                var stream = this.ongoing[key].data;
-                this.ongoing[key].data = Buffer.concat([stream, data]);
-                if (fin) {
-                    var m = message.parse(this.ongoing[key].data);
-                    done(m);
-                    delete this.ongoing[key];
+            var feed = msg;
+            if (this.roaming != null) {
+                feed = Buffer.concat([this.roaming, msg]);
+            }
+            const parsedFrame = frame.parse(feed);
+            this.roaming = parsedFrame.roaming;
+            parsedFrame.chunks.forEach((chunk) => {
+                var key = chunk.key;
+                var fin = chunk.fin;
+                var data = chunk.data;
+                if (this.ongoing[key] != undefined) {
+                    var stream = this.ongoing[key].data;
+                    this.ongoing[key].data = Buffer.concat([stream, data]);
+                    if (fin) {
+                        var m = message.parse(this.ongoing[key].data);
+                        done(key, m);
+                        delete this.ongoing[key];
+                    }
+                    else {
+                        //now is a good time to emit events for partial data receiving
+                    }
                 }
                 else {
-                    //now is a good time to emit events for partial data receiving
+                    if (fin) {
+                        var m = message.parse(data);
+                        done(key, m);
+                    }
+                    else {
+                        //more chunks r supposed to arrive, for reference store this chunk in ongoing
+                        this.ongoing[key] = { data };
+                    }
                 }
-            }
-            else {
-                if (fin) {
-                    var m = message.parse(data);
-                    done(m);
-                }
-                else {
-                    //more chunks r supposed to arrive, for reference store this chunk in ongoing
-                    this.ongoing[key] = { data };
-                }
-            }
+            })
         });
 
         this.socket.on('listening', () => {
@@ -306,7 +315,7 @@ var api = {
                     send();
                     schedule();
                 }
-            }, 3)
+            }, 0)
         }
         if (msg.length > frameSize) {
             //size too large to be sent together, break them up!
@@ -330,7 +339,7 @@ var api = {
             var ip = address.split(':')[0];
             var port = address.split(':')[1];
             port = parseInt(port);
-            console.log("sending req to",address);
+            console.log("sending req to", address);
             this.sendFrame(key, message.build({ type: 'request', to, body }), port, ip);
         })
     },

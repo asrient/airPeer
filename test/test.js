@@ -1,7 +1,10 @@
 const airPeer = require("../lib.js");
 const fs = require('fs');
 
-airPeer.start("peer1", "localhost:3000", "testapp", "Pix");
+airPeer.start("peer1", "airbroker.herokuapp.com", "testapp", "Pix");
+//airPeer.start("peer1", "airbase-airbase.apps.us-east-1.starter.openshift-online.com", "testapp", "Pix");
+//airPeer.start("peer1", "192.168.137.1:3000", "testapp", "Pix");
+//airPeer.start("peer1", "localhost:3000", "testapp", "Pix");
 
 var airId = null;
 
@@ -10,21 +13,26 @@ airPeer.on("connection", (id) => {
     console.log("CONNECTED AS ", id);
     console.log("sending request...");
 
-    airPeer.request(airId, 'in.jpg', (res) => {
+    /*airPeer.request(airId, 'media/in.txt', (res) => {
         console.log("response ended!");
-        fs.writeFile("out.jpg", res.body, () => {
+        fs.writeFile("out.txt", res.body, () => {
+            console.log("file written!")
+        });
+    })*/
+    airPeer.request(airId, 'media/in2.txt', (res) => {
+        console.log("response ended!");
+        fs.writeFile("out2.txt", res.body, () => {
             console.log("file written!")
         });
     })
-   /* setTimeout(() => {
-        airPeer.request(airId, 'in1.jpg', (res) => {
+    /*setTimeout(() => {
+        airPeer.request(airId, 'media/in.jpg', (res) => {
             console.log("response ended!");
-            fs.writeFile("out1.jpg", res.body, () => {
+            fs.writeFile("out.jpg", res.body, () => {
                 console.log("file written!")
             });
         })
-    }, 30)*/
-
+    }, 10)*/
 })
 
 airPeer.on("request", (req) => {
@@ -39,15 +47,31 @@ airPeer.on("request", (req) => {
 
 airPeer.on('localPeerFound', (rec) => {
     var airId = rec.uid + ':' + rec.host + ':' + rec.sessionId;
-     setTimeout(()=>{
+    if(rec.uid=='peer2'){
+        setTimeout(()=>{
         console.log("sending request to",airId);
-        airPeer.request(airId, 'in.jpg', (res) => {
+
+        /*airPeer.request(airId, 'media/in2.txt', (res) => {
+            console.log("response ended!");
+            fs.writeFile("out2.txt", res.body, () => {
+                console.log("file written!")
+            });
+        })*/
+
+        /*airPeer.request(airId, 'media/in.jpg', (res) => {
             console.log("response ended!");
             fs.writeFile("out.jpg", res.body, () => {
                 console.log("file written!")
             });
-        }) 
-     },1000)
+        })*/
 
+        airPeer.request(airId, 'media/in2.txt', (res) => {
+            console.log("response ended!");
+            fs.writeFile("out2.txt", res.body, () => {
+                console.log("file written!")
+            });
+        })
 
+     },10000)
+    }
 })
