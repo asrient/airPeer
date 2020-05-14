@@ -253,6 +253,8 @@ var api = {
                 var data = chunk.data;
                 if (this.ongoing[key] != undefined) {
                     var stream = this.ongoing[key].data;
+                    this.ongoing[key].count++;
+                    console.log("storing chunk",this.ongoing[key].count);
                     this.ongoing[key].data = Buffer.concat([stream, data]);
                     if (fin) {
                         var m = message.parse(this.ongoing[key].data);
@@ -270,7 +272,7 @@ var api = {
                     }
                     else {
                         //more chunks r supposed to arrive, for reference store this chunk in ongoing
-                        this.ongoing[key] = { data };
+                        this.ongoing[key] = { data,count:1 };
                     }
                 }
             })
@@ -292,7 +294,12 @@ var api = {
         }
     },
     sendFrame: function (key, msg, port, ip) {
-        send = () => {
+        var offset = 0;
+        var last = msg.length - 1;
+        var end = 0;
+        var chunk;
+        var fin = false;
+        const send = () => {
             if (offset < last) {
                 end = offset + frameSize - 50;//
                 if (end > last) {
@@ -308,26 +315,25 @@ var api = {
                 this.send(frm, port, ip);
                 offset = end;
             }
+            else
+                console.error('local: offset > last', offset, last);
         }
-        schedule = () => {
-            setTimeout(() => {
+        const schedule = () => {
+           setTimeout(() => {
                 if (!fin) {
+                    console.log('SCHEDULING..');
                     send();
                     schedule();
-                }
+                }  
             }, 0)
         }
         if (msg.length > frameSize) {
             //size too large to be sent together, break them up!
-            var offset = 0;
-            var last = msg.length - 1;
-            var end = 0;
-            var chunk;
-            var fin = false;
             send();
             if (!fin) {
                 schedule();
             }
+            console.log('Message sent!');
         }
         else {
             //msg can be sent at once

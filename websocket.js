@@ -177,7 +177,13 @@ var api = {
         this.ongoing = {};
     },
     sendFrame: function (key, msg) {
-        send = () => {
+        var offset = 0;
+        var last = msg.length - 1;
+        var end = 0;
+        var chunk;
+        var fin = false;
+
+        const send = () => {
             if (offset < last) {
                 console.log("---sending a chunk---");
                 end = offset + frameSize - 50;//
@@ -197,23 +203,20 @@ var api = {
                 console.log('--------------------')
             }
             else
-                console.error('offset > last');
+                console.error('local: offset > last', offset, last);
         }
-        schedule = () => {
-                if (!fin) {
-                    console.log('SCHEDULING..');
-                    send();
-                    schedule();
-                }
+
+        const schedule = () => {
+            if (!fin) {
+                console.log('SCHEDULING..');
+                send();
+                schedule();
+            }
         }
+        
         if (msg.length > frameSize) {
             //size too large to be sent together, break them up!
             console.log('size too large to be sent together, break them up!');
-            var offset = 0;
-            var last = msg.length - 1;
-            var end = 0;
-            var chunk;
-            var fin = false;
             send();
             if (!fin) {
                 schedule();

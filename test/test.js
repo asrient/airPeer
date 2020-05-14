@@ -19,9 +19,9 @@ airPeer.on("connection", (id) => {
             console.log("file written!")
         });
     })*/
-    airPeer.request(airId, 'media/in2.txt', (res) => {
+    airPeer.request(airId, 'media/in.mp4', (res) => {
         console.log("response ended!");
-        fs.writeFile("out2.txt", res.body, () => {
+        fs.writeFile("out.mp4", res.body, () => {
             console.log("file written!")
         });
     })
@@ -47,16 +47,16 @@ airPeer.on("request", (req) => {
 
 airPeer.on('localPeerFound', (rec) => {
     var airId = rec.uid + ':' + rec.host + ':' + rec.sessionId;
-    if(rec.uid=='peer2'){
+    //if(rec.uid=='peer2'){
         setTimeout(()=>{
         console.log("sending request to",airId);
 
-        /*airPeer.request(airId, 'media/in2.txt', (res) => {
+        airPeer.request(airId, 'media/in.mp4', (res) => {
             console.log("response ended!");
-            fs.writeFile("out2.txt", res.body, () => {
+            fs.writeFile("out.mp4", res.body, () => {
                 console.log("file written!")
             });
-        })*/
+        })
 
         /*airPeer.request(airId, 'media/in.jpg', (res) => {
             console.log("response ended!");
@@ -65,13 +65,13 @@ airPeer.on('localPeerFound', (rec) => {
             });
         })*/
 
-        airPeer.request(airId, 'media/in2.txt', (res) => {
+        airPeer.request(airId, 'media/in.txt', (res) => {
             console.log("response ended!");
-            fs.writeFile("out2.txt", res.body, () => {
+            fs.writeFile("out.txt", res.body, () => {
                 console.log("file written!")
             });
         })
 
-     },10000)
-    }
+     },10)
+    //}
 })
