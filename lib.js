@@ -27,7 +27,7 @@ var api = {
             port = parseInt(host.split(':')[1]);
             host = host.split(':')[0];
         }
-        ws.start(uid, host, port);
+        //ws.start(uid, host, port);
         local.start(uid, host, app, name);
     },
     stop: function () {

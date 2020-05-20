@@ -36,8 +36,11 @@ airPeer.on("connection", (id) => {
 })
 
 airPeer.on("request", (req) => {
-    console.log("A req arrived!");
     req.parseBody();
+    console.log("A req arrived!");
+    if(req.body=='hello'){
+        req.respond(200, 'hi!');
+    }
     fs.readFile(req.body, (err, data) => {
         if (data != null) {
             req.respond(200, data);
@@ -58,19 +61,19 @@ airPeer.on('localPeerFound', (rec) => {
             });
         })
 
-        /*airPeer.request(airId, 'media/in.jpg', (res) => {
+        airPeer.request(airId, 'media/in.jpg', (res) => {
             console.log("response ended!");
             fs.writeFile("out.jpg", res.body, () => {
                 console.log("file written!")
             });
-        })*/
+        })
 
-        airPeer.request(airId, 'media/in.txt', (res) => {
+        /*airPeer.request(airId, 'media/in.txt', (res) => {
             console.log("response ended!");
             fs.writeFile("out.txt", res.body, () => {
                 console.log("file written!")
             });
-        })
+        })*/
 
      },10)
     //}

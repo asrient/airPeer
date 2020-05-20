@@ -14,6 +14,12 @@ function buildMessage(obj) {
     if (obj.type == 'connect' && obj.host != undefined) {
       msg += "host=" + obj.host + sep;
     }
+    if (obj.type == 'connect' && obj.sessionid != undefined) {
+      msg += "sessionid=" + obj.sessionid + sep;
+    }
+    if (obj.type == 'connect' && obj.port != undefined) {
+      msg += "port=" + obj.port + sep;
+    }
     if (obj.type == 'connect' && obj.name != undefined) {
       msg += "name=" + obj.name + sep;
     }
@@ -90,17 +96,29 @@ function parseMessage(msg) {
             if (key == 'host' && data.type == 'connect') {
               data[key] = val;
             }
-            else if (key == 'airid' && data.type == 'connected') {
+            if (key == 'sessionid' && data.type == 'connect') {
               data[key] = val;
             }
-            else if (data.type == 'request' || data.type == 'response') {
+            if (key == 'port' && data.type == 'connect') {
+              data[key] = val;
+            }
+            if (key == 'app' && data.type == 'connect') {
+              data[key] = val;
+            }
+            if (key == 'name' && data.type == 'connect') {
+              data[key] = val;
+            }
+            if (key == 'airid' && data.type == 'connected') {
+              data[key] = val;
+            }
+            if (data.type == 'request' || data.type == 'response') {
               if (key == 'to') {
                 data[key] = val;
               }
-              else if (key == 'from') {
+              if (key == 'from') {
                 data[key] = val;
               }
-              else if (data.type == 'response' && key == 'status') {
+              if (data.type == 'response' && key == 'status') {
                 data[key] = parseInt(val);
               }
             }
