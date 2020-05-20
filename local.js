@@ -105,11 +105,8 @@ function sendConnectMsg(airId) {
 }
 
 class Socket {
-    ip = null;
-    port = null;
-    socket = null;
-    isConnected = false;
     constructor(ip, port) {
+        this.isConnected = false;
         this.ip = ip;
         this.port = port;
         this.socket = net.createConnection({ port: this.port, host: this.ip }, () => {
@@ -118,6 +115,10 @@ class Socket {
         })
         this.socket.setNoDelay(true);
         this.socket.on('end', () => {
+            this.isConnected = false;
+        })
+        this.socket.on('error', (err) => {
+            console.error(err);
             this.isConnected = false;
         })
         this.socket.on('close', () => {
