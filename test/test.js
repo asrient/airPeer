@@ -50,7 +50,7 @@ airPeer.on("request", (req) => {
 
 airPeer.on('localPeerFound', (rec) => {
     var airId = rec.uid + ':' + rec.host + ':' + rec.sessionId;
-    //if(rec.uid=='peer2'){
+    if(rec.uid=='peer2'){
         setTimeout(()=>{
         console.log("sending request to",airId);
 
@@ -76,5 +76,5 @@ airPeer.on('localPeerFound', (rec) => {
         })*/
 
      },10)
-    //}
+    }
 })

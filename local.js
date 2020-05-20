@@ -245,6 +245,7 @@ function handleConnection(socket) {
                     addresses: [address],
                     lastSeen: new Date().getTime()
                 }
+                sendConnectMsg(airId);
                 api.emit('localPeerFound', airBook[airId]);
             }
         }
