@@ -57,14 +57,13 @@ mdns.on('response', function (response) {
 
 function housekeeping() {
     var dt = new Date();
-    //remove peers that has been inactive for more than 6 secs
-    peers = peers.filter((peer) => {
-        var willStay = (peer.lastSeen > (dt.getTime() - 20000));
-        if (!willStay) {
-            console.log("removing peer", peer)
-            api.emit('localPeerRemoved', peer);
+    //remove peers that has been inactive for more than 20 secs
+    Object.keys(airBook).forEach((airId) => {
+        if ((airBook[airId].lastSeen + 20000) < dt.getTime()) {
+            console.log("removing peer", airId)
+            api.emit('localPeerRemoved', airBook[airId]);
+            delete airBook[airId];
         }
-        return willStay;
     })
 }
 
@@ -85,7 +84,7 @@ function broadcast() {
             data: rec
         }]
     })
-    //housekeeping();
+    housekeeping();
 }
 
 function sendConnectMsg(airId) {
@@ -341,7 +340,7 @@ var api = {
     start: function (uid, host, app, name) {
         this.uid = uid;
         this.host = host;
-        this.sessionId = 'local.'+keyGen(4);
+        this.sessionId = 'local.' + keyGen(4);
         this.app = app;
         this.name = name;
         this.roaming = null;
@@ -381,7 +380,12 @@ var api = {
         })
     },
     getPeers: function () {
-        return [];
+        var peers=[]
+        Object.keys(airBook).forEach((airId)=>{
+            if(airBook[airId].address!=null){
+                peers.push(airBook[airId]);
+            }
+        })
     }
 }
 
