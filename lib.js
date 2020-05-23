@@ -33,6 +33,12 @@ var api = {
     stop: function () {
 
     },
+    getMyAirIds:function(){
+        return{
+            global:ws.getAirId(),
+            local:local.getAirId(),
+        }
+    },
     localPeers: function () {
         return local.getPeers();
     },

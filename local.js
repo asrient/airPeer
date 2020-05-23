@@ -210,7 +210,6 @@ function handleConnection(socket) {
                     api.emit('request', { key, message: m });
                 }
                 else if (m.type == 'response') {
-                    console.log("got a response");
                     api.emit('response', { key, message: m });
                 }
                 else if (m.type == 'connect') {
@@ -232,7 +231,7 @@ function handleConnection(socket) {
         }
         else if (m.type == 'connect') {
             //connecting a brand new peer
-            console.log('connecting a brand new peer', m)
+            //console.log('connecting a brand new peer', m)
             if (m.uid != undefined && m.host != undefined && m.sessionid != undefined && m.port != undefined) {
                 airBook[airId] = {
                     uid: m.uid,
@@ -361,12 +360,17 @@ var api = {
             console.error(err);
         });
         this.server.listen(() => {
-            console.log('server listening', this.server.listening);
+            //console.log('server listening', this.server.listening);
             this.port = this.server.address().port;
             //Start broadscasting my existance to others
             broadcast();
             setInterval(broadcast, 2000);
         });
+    },
+    getAirId: function () {
+        if (this.uid != null && this.host != null && this.sessionId != null)
+            return this.uid + ':' + this.host + ':' + this.sessionId;
+        else return null;
     },
     request: function (to, key, body = null) {
         var from = this.uid + ':' + this.host + ':' + this.sessionId;
@@ -381,9 +385,9 @@ var api = {
         })
     },
     getPeers: function () {
-        var peers=[]
-        Object.keys(airBook).forEach((airId)=>{
-            if(airBook[airId].address!=null){
+        var peers = []
+        Object.keys(airBook).forEach((airId) => {
+            if (airBook[airId].address != null) {
                 peers.push(airBook[airId]);
             }
         })
