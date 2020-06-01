@@ -21,22 +21,28 @@ var replies = new Emitter;
 var api = {
     uid: null,
     host: null,
+    app: null,
+    name: null,
     start: function (uid, host, app, name) {
         var port = 80;
         if (host.split(':')[1] != undefined) {
             port = parseInt(host.split(':')[1]);
             host = host.split(':')[0];
         }
+        this.uid = uid;
+        this.host = host;
+        this.app = app;
+        this.name = name;
         ws.start(uid, host, port);
         local.start(uid, host, app, name);
     },
     stop: function () {
 
     },
-    getMyAirIds:function(){
-        return{
-            global:ws.getAirId(),
-            local:local.getAirId(),
+    getMyAirIds: function () {
+        return {
+            global: ws.getAirId(),
+            local: local.getAirId(),
         }
     },
     localPeers: function () {
