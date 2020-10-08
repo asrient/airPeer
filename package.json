@@ -1,7 +1,7 @@
 {
   "name": "airpeer",
   "version": "1.0.0",
-  "description": "A js library for airSync devices",
+  "description": "A js library for airPeer protocol",
   "main": "lib.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -11,5 +11,6 @@
   "dependencies": {
     "component-emitter": "^1.3.0",
     "multicast-dns": "^7.2.2"
-  }
+  },
+  "publishConfig": { "registry": "https://npm.pkg.github.com/" }
 }
