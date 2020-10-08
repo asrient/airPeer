@@ -1,5 +1,5 @@
 {
-  "name": "airpeer",
+  "name": "@asrient/airpeer",
   "version": "1.0.0",
   "description": "A js library for airPeer protocol",
   "main": "lib.js",
