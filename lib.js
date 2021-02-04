@@ -9,8 +9,9 @@ class AirPeer extends Emitter {
     static getIpAddrs() {
         return util.getIpAddrs()
     }
-    replies = new Emitter;
+    _replies = new Emitter;
     constructor({ appName, deviceName, uid, ipAddr, host }) {
+        super()
         if (appName && uid && host) {
             if (!ipAddr) {
                 ipAddr = util.getIpAddr();
@@ -32,7 +33,7 @@ class AirPeer extends Emitter {
 
             this.ws.on("response", (res) => {
                 //console.log("new res from ws");
-                this.replies.emit(res.key, res.message);
+                this._replies.emit(res.key, res.message);
             })
 
             this.local.on("request", (req) => {
@@ -42,7 +43,7 @@ class AirPeer extends Emitter {
 
             this.local.on("response", (res) => {
                 //console.log("new res from local");
-                this.replies.emit(res.key, res.message);
+                this._replies.emit(res.key, res.message);
             })
 
             this.ws.on("connection", (airId) => {
@@ -78,7 +79,7 @@ class AirPeer extends Emitter {
         else
             this.ws.request(to, key, body);
 
-        this.replies.on(key, (res) => {
+        this._replies.on(key, (res) => {
             var fromId = res.from;
             if (toId.uid == fromId.uid && toId.host == fromId.host) {
                 delete res.key;
