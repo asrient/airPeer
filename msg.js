@@ -1,7 +1,8 @@
-const version = '1.0';
+const version = '1.1';
 const seperator = "\r\n\r\n";
 const sepLen = Buffer.byteLength(seperator);
 const types = ['connect', 'connected', 'request', 'response'];
+const util, { AirId } = require("./util.js")
 
 function buildMessage(obj) {
   var sep = "\r\n";
@@ -30,14 +31,14 @@ function buildMessage(obj) {
       msg += "app=" + obj.app + sep;
     }
     if (obj.type == 'connected' && obj.airid != undefined) {
-      msg += "airid=" + obj.airid + sep;
+      msg += "airid=" + obj.airid.str + sep;
     }
     if (obj.type == 'request' || obj.type == 'response') {
       if (obj.to != undefined) {
-        msg += "to=" + obj.to + sep;
+        msg += "to=" + obj.to.airId + sep;
       }
       if (obj.from != undefined) {
-        msg += "from=" + obj.from + sep;
+        msg += "from=" + obj.from.airId + sep;
       }
       if (obj.type == 'response' && obj.status != undefined) {
         msg += "status=" + obj.status + sep;
@@ -109,14 +110,14 @@ function parseMessage(msg) {
               data[key] = val;
             }
             if (key == 'airid' && data.type == 'connected') {
-              data[key] = val;
+              data[key] = AirId(val);
             }
             if (data.type == 'request' || data.type == 'response') {
               if (key == 'to') {
-                data[key] = val;
+                data[key] = AirId(val);
               }
               if (key == 'from') {
-                data[key] = val;
+                data[key] = AirId(val);
               }
               if (data.type == 'response' && key == 'status') {
                 data[key] = parseInt(val);
