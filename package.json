@@ -1,6 +1,6 @@
 {
   "name": "@asrient/airpeer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A js library for airPeer protocol",
   "main": "lib.js",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git://github.com/asrient/airPeer.git"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "ASRIENT",
   "license": "ISC",
@@ -18,5 +18,8 @@
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
+  },
+  "devDependencies": {
+    "jest": "^26.6.3"
   }
 }

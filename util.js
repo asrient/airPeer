@@ -7,7 +7,10 @@ class AirId {
     }
     airId = null;
     constructor(airId, host = null, sessionId = null) {
-        if (!host && !sessionId && airId.split(':').length > 1) {
+        if (airId instanceof AirId) {
+            this.airId = airId.str
+        }
+        else if (!host && !sessionId && airId.split(':').length > 1) {
             this.airId = airId
         }
         else if (host && airId.split(':').length == 1) {
@@ -25,7 +28,7 @@ class AirId {
         return {
             uid: ids[0],
             host: ids[1],
-            sessionId: ids[2]||null
+            sessionId: ids[2] || null
         }
     }
     get str() {
@@ -44,13 +47,13 @@ class AirId {
         this.airId = `${str}:${this.airId.split(':')[0]}:${this.airId.split(':')[1]}`
     }
     get sessionId() {
-        return this.airId.split(':')[2]||null
+        return this.airId.split(':')[2] || null
     }
     set sessionId(str) {
-        if(str)
-        this.airId = `${this.airId.split(':')[0]}:${this.airId.split(':')[1]}:${str}`
+        if (str)
+            this.airId = `${this.airId.split(':')[0]}:${this.airId.split(':')[1]}:${str}`
         else
-        this.airId = `${this.airId.split(':')[0]}:${this.airId.split(':')[1]}`
+            this.airId = `${this.airId.split(':')[0]}:${this.airId.split(':')[1]}`
     }
     get isLocal() {
         if (this.sessionId) {
@@ -73,6 +76,10 @@ class AirId {
 }
 
 module.exports = {
+    c: {
+        FRAME_SIZE: 64535, //65535
+        VERSION: '1.1'
+    },
     getIpAddrs() {
         var network = os.networkInterfaces();
         var obj = {}

@@ -1,15 +1,19 @@
-const Emitter = require("component-emitter");
+const EventEmitter = require("events");
 const crypto = require('crypto');
 const util = require("./util.js")
 const Ws = require('./ws.js')
 const Local = require('./local.js');
 const { AirId } = require("./util.js");
 
-class AirPeer extends Emitter {
+class AirPeer extends EventEmitter {
     static getIpAddrs() {
         return util.getIpAddrs()
     }
-    _replies = new Emitter;
+    static getDeviceName() {
+        return util.getDeviceName()
+    }
+    static AirId = AirId
+    _replies = new EventEmitter();
     constructor({ appName, deviceName, uid, ipAddr, host }) {
         super()
         if (appName && uid && host) {
@@ -24,8 +28,8 @@ class AirPeer extends Emitter {
                 port = parseInt(host.split(':')[1]);
                 host = host.split(':')[0];
             }
-            this.ws = Ws(uid, host, port);
-            this.local = Local(appName, deviceName, uid, host, ipAddr);
+            this.ws = new Ws(uid, host, port);
+            this.local = new Local(appName, deviceName, uid, host, ipAddr);
             this.ws.on("request", (req) => {
                 //console.log("new req from ws");
                 this.emit("request", this._receiveRequest(req.key, req.message));
@@ -37,17 +41,17 @@ class AirPeer extends Emitter {
             })
 
             this.local.on("request", (req) => {
-                // console.log("new req from local");
+                 console.log("new req from local");
                 this.emit("request", this._receiveRequest(req.key, req.message));
             })
 
             this.local.on("response", (res) => {
-                //console.log("new res from local");
+                 console.log("new res from local");
                 this._replies.emit(res.key, res.message);
             })
 
             this.ws.on("connection", (airId) => {
-                api.emit("connection", airId);
+                this.emit("connection", airId);
             })
 
             this.ws.on("disconnection", (airId) => {
@@ -73,7 +77,7 @@ class AirPeer extends Emitter {
     }
     request(to, body, cb = function () { }) {
         var key = crypto.randomBytes(8);
-        var toId = AirId(to);
+        var toId = new AirId(to);
         if (toId.isLocal)
             this.local.request(to, key, body);
         else

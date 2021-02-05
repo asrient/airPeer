@@ -1,8 +1,9 @@
-const version = '1.1';
+const { AirId } = require("./util.js")
+const util = require("./util.js")
+const version = util.c.VERSION;
 const seperator = "\r\n\r\n";
 const sepLen = Buffer.byteLength(seperator);
 const types = ['connect', 'connected', 'request', 'response'];
-const util, { AirId } = require("./util.js")
 
 function buildMessage(obj) {
   var sep = "\r\n";
@@ -110,14 +111,14 @@ function parseMessage(msg) {
               data[key] = val;
             }
             if (key == 'airid' && data.type == 'connected') {
-              data[key] = AirId(val);
+              data[key] = new AirId(val);
             }
             if (data.type == 'request' || data.type == 'response') {
               if (key == 'to') {
-                data[key] = AirId(val);
+                data[key] = new AirId(val);
               }
               if (key == 'from') {
-                data[key] = AirId(val);
+                data[key] = new AirId(val);
               }
               if (data.type == 'response' && key == 'status') {
                 data[key] = parseInt(val);

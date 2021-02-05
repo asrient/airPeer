@@ -1,4 +1,5 @@
-const frameSize = 65535;
+const util = require('./util.js');
+const frameSize = util.c.FRAME_SIZE;
 
 function parseChunk(buffer) {
   if (buffer.length >= 11) {

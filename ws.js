@@ -1,13 +1,14 @@
 const net = require('net');
-const Emitter = require("component-emitter");
+const EventEmitter  = require('events');
 const message = require('./msg.js');
 const crypto = require('crypto');
 const frame = require('./frame.js');
-const { AirId } = require("./util.js")
+const { AirId } = require("./util.js");
+const util = require('./util.js');
 
-const frameSize = 64535;//65535;
+const frameSize = util.c.FRAME_SIZE;
 
-class Ws extends Emitter {
+class Ws extends EventEmitter  {
     _ongoing = {}
     _roaming = null
     _isInit = false
@@ -30,7 +31,7 @@ class Ws extends Emitter {
             }
             else {
                 console.error("No Internet Connection");
-                api.emit('disconnection');
+                this.emit('disconnection');
                 this._retries = 0;
                 setTimeout(() => {
                     this.reconnect();
@@ -72,6 +73,7 @@ class Ws extends Emitter {
         this._socket.setNoDelay(true);
         //this._socket.uncork();
         this._socket.on("data", (msg) => {
+            // console.log("DATA from WS",msg.toString())
             if (!this._isUpgraded) {
                 var str = Buffer.from(msg).toString();
                 var title = str.split("\r\n")[0];
@@ -96,7 +98,7 @@ class Ws extends Emitter {
                     var key = chunk.key;
                     var fin = chunk.fin;
                     var data = chunk.data;
-                    if (this.sessionId == null) {
+                    if (this.airId.sessionId == null) {
                         //not connected yet!
                         var m = message.parse(data);
                         if (m.type == 'connected') {
@@ -104,7 +106,7 @@ class Ws extends Emitter {
                             this._retries = 0;
                             this._ongoing = {};
                             console.log("connected!", this.airId.str);
-                            api.emit('connection', this.airId);
+                            this.emit('connection', this.airId);
                         }
                     }
                     else {
@@ -115,10 +117,12 @@ class Ws extends Emitter {
                                 var m = message.parse(this._ongoing[key].data);
                                 if (m.type != undefined) {
                                     if (m.type == 'request') {
-                                        api.emit('request', { key, message: m });
+                                       // console.log('req',key,m)
+                                        this.emit('request', { key, message: m });
                                     }
                                     else if (m.type == 'response') {
-                                        api.emit('response', { key, message: m });
+                                        //console.log('res',key,m)
+                                        this.emit('response', { key, message: m });
                                     }
                                 }
                                 delete this._ongoing[key];
@@ -133,10 +137,12 @@ class Ws extends Emitter {
                                 if (m.type != undefined) {
 
                                     if (m.type == 'request') {
-                                        api.emit('request', { key, message: m });
+                                        //console.log('req',key,m)
+                                        this.emit('request', { key, message: m });
                                     }
                                     else if (m.type == 'response') {
-                                        api.emit('response', { key, message: m });
+                                        //console.log('res',key,m)
+                                        this.emit('response', { key, message: m });
                                     }
                                 }
                             }
@@ -163,7 +169,7 @@ class Ws extends Emitter {
     }
     constructor(uid, host, port = 80) {
         super()
-        this.airId = AirId(uid,host);
+        this.airId = new AirId(uid,host);
         this._port = port;
         if (!this._isInit) {
             this.connect();
