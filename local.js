@@ -134,29 +134,7 @@ class Local extends EventEmitter {
                 }]
             })
     }
-    _connDone (socket, key, m) {
-        console.log('msg from local client', m);
-        socket.end();
-        if (m.from == undefined && m.uid && m.host && m.sessionid) {
-            var airId = new AirId(m.uid, m.host, m.sessionid);
-            //console.log('AIRID',airId,m)
-        }
-        else {
-            var airId = new AirId(m.from);
-        }
-        if (airId.isLocal) {
-            if (m.type == 'request') {
-                this.emit('request', { key, message: m });
-            }
-            else if (m.type == 'response') {
-                this.emit('response', { key, message: m });
-            }
-        }
-        else {
-            console.log("got a msg from global address in local server", address + ':' + port, m.type, m.from, m.body.length);
-        }
-    }
-    _handleConnection(socket) {
+    _handleConnection = (socket) => {
         /////////////////////////////
         var address = socket.remoteAddress;
         var port = socket.remotePort;
@@ -167,6 +145,30 @@ class Local extends EventEmitter {
 
         var roaming = null;
         var ongoing = null;
+
+        var done = (key, m) => {
+            socket.end();
+            if (m.from == undefined && m.uid && m.host && m.sessionid) {
+                var airId = new AirId(m.uid, m.host, m.sessionid);
+                //console.log('AIRID',airId,m)
+            }
+            else {
+                var airId = new AirId(m.from);
+            }
+            if (airId.isLocal) {
+                if (m.type == 'request') {
+                    //console.log('req from local client', m);
+                    this.emit('request', { key, message: m });
+                }
+                else if (m.type == 'response') {
+                    //console.log('res from local client', m);
+                    this.emit('response', { key, message: m });
+                }
+            }
+            else {
+                console.log("got a msg from global address in local server", address + ':' + port, m.type, m.from, m.body.length);
+            }
+        }
 
         //console.log('client connected', address + ':' + port);
         socket.on('end', () => {
@@ -190,7 +192,7 @@ class Local extends EventEmitter {
                     ongoing.data = Buffer.concat([stream, data]);
                     if (fin) {
                         var m = message.parse(ongoing.data);
-                        this._connDone(socket, key, m);
+                        done(key, m);
                         ongoing = null;
                     }
                     else {
@@ -200,7 +202,7 @@ class Local extends EventEmitter {
                 else {
                     if (fin) {
                         var m = message.parse(data);
-                        this._connDone(socket, key, m);
+                        done(key, m);
                     }
                     else {
                         //more chunks r supposed to arrive, for reference store this chunk in ongoing
@@ -212,7 +214,7 @@ class Local extends EventEmitter {
         });
     }
     _sendFrame(key, msg, ip, port) {
-        console.log('sending frame', msg.toString(), ip, port)
+        //console.log('sending frame', msg.toString(), ip, port)
         var offset = 0;
         var last = msg.length - 1;
         var end = 0;
